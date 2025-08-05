@@ -60,7 +60,9 @@ recording_session_start_time = None
 trial_counter = 1
 
 # --- Live Data Buffering for GUI ---
-LIVE_BUFFER_CHUNKS = 100  # Increased for longer plots (10x slower)
+# Increased buffer size to store up to 3 seconds of data (2000 Hz * 3 seconds = 6000 samples)
+# Since each chunk contains 1 sample, we need 6000 chunks
+LIVE_BUFFER_CHUNKS = 6000
 live_data_buffers = [collections.deque(maxlen=LIVE_BUFFER_CHUNKS) for _ in range(NUM_SENSORS)]
 live_data_lock = threading.Lock()
 

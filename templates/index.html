@@ -1,4 +1,4 @@
-<!-- templates/index.html - Updated for click-to-record, 4 channels, and 10x slower plots -->
+<!-- templates/index.html - Updated for click-to-record, 4 channels, and proper 3-second visualization -->
 <!DOCTYPE html>
 <html lang="en">
 
@@ -201,6 +201,69 @@
             margin-top: 10px;
         }
 
+        /* --- Time History Control --- */
+        .time-history-control {
+            text-align: center;
+            margin: 20px auto;
+            padding: 15px;
+            background: rgba(255, 255, 255, 0.9);
+            border-radius: 15px;
+            max-width: 700px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+        }
+
+        .time-history-control label {
+            font-weight: 500;
+            font-size: 18px;
+            color: #2a4d69;
+            display: block;
+            margin-bottom: 10px;
+        }
+
+        #timeHistorySlider {
+            width: 80%;
+            max-width: 600px;
+            height: 10px;
+            border-radius: 5px;
+            background: #e0e0e0;
+            outline: none;
+            -webkit-appearance: none;
+        }
+
+        #timeHistorySlider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 25px;
+            height: 25px;
+            border-radius: 50%;
+            background: #4CAF50;
+            cursor: pointer;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+        }
+
+        #timeHistorySlider::-moz-range-thumb {
+            width: 25px;
+            height: 25px;
+            border-radius: 50%;
+            background: #4CAF50;
+            cursor: pointer;
+            border: none;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+        }
+
+        #timeHistoryValue {
+            display: inline-block;
+            width: 80px;
+            text-align: center;
+            font-weight: 700;
+            font-size: 18px;
+            color: #388e3c;
+            background: rgba(255, 255, 255, 0.7);
+            padding: 5px 10px;
+            border-radius: 8px;
+            margin-left: 10px;
+        }
+
         .chart-wrapper {
             background: rgba(255, 255, 255, 0.92);
             border-radius: 15px;
@@ -270,6 +333,11 @@
                 <button id="recordButton" class="control-button" disabled>Start Recording</button>
             </div>
             <div id="status">Ready. Click 'Start Streaming'.</div>
+            <!-- Time History Control Slider -->
+            <div class="time-history-control">
+                <label for="timeHistorySlider">Time History: <span id="timeHistoryValue">3.0</span> seconds</label>
+                <input type="range" id="timeHistorySlider" min="1" max="3" step="0.1" value="3">
+            </div>
             <!-- Y-Axis Control Slider -->
             <div class="y-axis-control">
                 <label for="yAxisSlider">Chart Y-Max: <span id="yAxisValue">0.0010</span> V</label>
@@ -283,9 +351,12 @@
     <script>
         const NUM_SENSORS = {{ num_sensors }};
         const MUSCLE_LABELS = {{ muscle_labels | tojson }};
-        const LIVE_DATA_INTERVAL = 1000; // Slower update - 1 second instead of 100ms
-        // --- 10x slower plots: 50 second window instead of 5 seconds ---
-        const MAX_POINTS_PER_CHART = 100000; // 50 seconds * 2000 Hz
+        const SAMPLING_RATE = 2000; // 2000 Hz
+        // Update every 50ms as requested
+        const LIVE_DATA_INTERVAL = 50;
+        // Default to 3 seconds time history
+        let timeHistorySeconds = 3.0;
+        let MAX_POINTS_PER_CHART = Math.floor(SAMPLING_RATE * timeHistorySeconds);
         // -------------------------------
         const streamButton = document.getElementById('streamButton');
         const recordButton = document.getElementById('recordButton');
@@ -339,9 +410,10 @@
                         animation: false,
                         scales: {
                             x: {
-                                display: false,
+                                display: false, // Remove x-axis labels as requested
                                 type: 'linear',
                                 min: 0,
+                                max: MAX_POINTS_PER_CHART - 1
                             },
                             y: {
                                 beginAtZero: true,
@@ -387,25 +459,25 @@
                     }
 
                     if (channelData && channelData.length > 0) {
-                        // Show last MAX_POINTS_PER_CHART points for longer time window
+                        // Show last MAX_POINTS_PER_CHART points for 3 second window
                         let startIndex = Math.max(0, channelData.length - MAX_POINTS_PER_CHART);
                         let endIndex = channelData.length;
                         let displayData = channelData.slice(startIndex, endIndex);
 
-                        // X-axis labels: time indices
+                        // X-axis labels: time indices (fixed 3-second window)
                         let xLabels = [];
                         for (let i = 0; i < displayData.length; i++) {
+                            // Create fixed window by using offset from start of window
                             xLabels.push(i);
                         }
 
                         chart.data.labels = xLabels;
                         chart.data.datasets[0].data = displayData;
-                        chart.options.scales.x.max = Math.max(1, displayData.length - 1);
-                        chart.update();
+                        chart.update('none'); // Use none animation for better performance
                     } else {
                         chart.data.labels = [];
                         chart.data.datasets[0].data = [];
-                        chart.update();
+                        chart.update('none');
                     }
                 }
             } catch (error) {
@@ -418,8 +490,9 @@
             if (liveDataIntervalId) {
                 clearInterval(liveDataIntervalId);
             }
+            // Update every 50ms as requested
             liveDataIntervalId = setInterval(updateCharts, LIVE_DATA_INTERVAL);
-            console.log("Live chart updates started (slower updates for longer plots).");
+            console.log("Live chart updates started (50ms updates for 3-second plots).");
         }
 
         function stopLiveUpdates() {
@@ -432,9 +505,26 @@
                 const chart = charts[i];
                 chart.data.labels = [];
                 chart.data.datasets[0].data = [];
-                chart.update();
+                chart.update('none');
             }
         }
+
+        // --- Time History Slider Control ---
+        function updateTimeHistory() {
+            timeHistorySeconds = parseFloat(timeHistorySlider.value);
+            timeHistoryValue.textContent = timeHistorySeconds.toFixed(1);
+            MAX_POINTS_PER_CHART = Math.floor(SAMPLING_RATE * timeHistorySeconds);
+            
+            // Update chart x-axis limits
+            for (let i = 0; i < charts.length; i++) {
+                const chart = charts[i];
+                if (chart && chart.options?.scales?.x) {
+                    chart.options.scales.x.max = MAX_POINTS_PER_CHART - 1;
+                    chart.update('none');
+                }
+            }
+        }
+        timeHistorySlider.addEventListener('input', updateTimeHistory);
 
         // --- Streaming Control ---
         streamButton.addEventListener('click', toggleStreaming);
@@ -569,7 +659,7 @@
                 if (chart && chart.options?.scales?.y) {
                     chart.options.scales.y.suggestedMax = newMax;
                     chart.options.scales.y.suggestedMin = -newMax;
-                    chart.update();
+                    chart.update('none');
                 }
             }
         }
@@ -580,6 +670,7 @@
             initializeCharts();
             updateStatus("System ready. Click 'Start Streaming' to begin visualizing 4-channel EMG data.", 'info');
             yAxisValue.textContent = parseFloat(yAxisSlider.value).toFixed(4);
+            timeHistoryValue.textContent = timeHistorySeconds.toFixed(1);
             recordButton.disabled = true;
         };
     </script>
