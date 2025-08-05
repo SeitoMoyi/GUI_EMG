@@ -1,0 +1,6 @@
+# Muscle labels configuration for 4-channel EMG system
+muscle_labels:
+  - L-TIBI
+  - L-GAST
+  - L-RECT
+  - R-TIBI

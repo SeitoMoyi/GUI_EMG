@@ -1,0 +1,588 @@
+<!-- templates/index.html - Updated for click-to-record, 4 channels, and 10x slower plots -->
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Delsys EMG Recorder - 4 Channel</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Roboto', Arial, sans-serif;
+            margin: 0;
+            padding: 15px;
+            background: linear-gradient(135deg, #1a2a6c, #2a4d69, #4b86b4);
+            color: #333;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 20px;
+            background: rgba(255, 255, 255, 0.9);
+            border-radius: 15px;
+            padding: 20px;
+            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
+        }
+
+        .header h1 {
+            margin: 0 0 15px 0;
+            color: #2a4d69;
+            font-weight: 700;
+            font-size: 2.5rem;
+            text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.1);
+        }
+
+        .control-buttons {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            flex-wrap: wrap;
+            margin: 15px 0;
+        }
+
+        .control-button {
+            padding: 18px 30px;
+            font-size: 20px;
+            font-weight: 500;
+            color: white;
+            border: none;
+            border-radius: 50px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+            letter-spacing: 1px;
+            min-width: 200px;
+        }
+
+        #streamButton {
+            background: linear-gradient(to right, #2196F3, #21CBF3);
+        }
+
+        #streamButton.streaming {
+            background: linear-gradient(to right, #9C27B0, #E040FB);
+            transform: scale(1.02);
+        }
+
+        #recordButton {
+            background: linear-gradient(to right, #4CAF50, #8BC34A);
+        }
+
+        #recordButton.recording {
+            background: linear-gradient(to right, #f44336, #ff9800);
+            transform: scale(1.05);
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.3);
+        }
+
+        .control-button:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.25);
+        }
+
+        .control-button:active:not(:disabled) {
+            transform: translateY(1px);
+        }
+
+        .control-button:disabled {
+            background: linear-gradient(to right, #BDBDBD, #9E9E9E);
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        #status {
+            text-align: center;
+            font-size: 18px;
+            min-height: 1.6em;
+            margin: 15px 0;
+            padding: 12px;
+            border-radius: 10px;
+            background: rgba(255, 255, 255, 0.85);
+            font-weight: 500;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .error {
+            color: #ffffff;
+            background: linear-gradient(to right, #d32f2f, #f44336);
+        }
+
+        .success {
+            color: #ffffff;
+            background: linear-gradient(to right, #388e3c, #4CAF50);
+        }
+
+        .info {
+            color: #ffffff;
+            background: linear-gradient(to right, #1976d2, #2196F3);
+        }
+
+        .warning {
+            color: #ffffff;
+            background: linear-gradient(to right, #f57c00, #ff9800);
+        }
+
+        /* --- Y-Axis Control --- */
+        .y-axis-control {
+            text-align: center;
+            margin: 20px auto;
+            padding: 15px;
+            background: rgba(255, 255, 255, 0.9);
+            border-radius: 15px;
+            max-width: 700px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+        }
+
+        .y-axis-control label {
+            font-weight: 500;
+            font-size: 18px;
+            color: #2a4d69;
+            display: block;
+            margin-bottom: 10px;
+        }
+
+        #yAxisSlider {
+            width: 80%;
+            max-width: 600px;
+            height: 10px;
+            border-radius: 5px;
+            background: #e0e0e0;
+            outline: none;
+            -webkit-appearance: none;
+        }
+
+        #yAxisSlider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 25px;
+            height: 25px;
+            border-radius: 50%;
+            background: #2196F3;
+            cursor: pointer;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+        }
+
+        #yAxisSlider::-moz-range-thumb {
+            width: 25px;
+            height: 25px;
+            border-radius: 50%;
+            background: #2196F3;
+            cursor: pointer;
+            border: none;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+        }
+
+        #yAxisValue {
+            display: inline-block;
+            width: 80px;
+            text-align: center;
+            font-weight: 700;
+            font-size: 18px;
+            color: #1976d2;
+            background: rgba(255, 255, 255, 0.7);
+            padding: 5px 10px;
+            border-radius: 8px;
+            margin-left: 10px;
+        }
+
+        .charts-container {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            /* 2x2 grid for 4 channels */
+            gap: 20px;
+            margin-top: 10px;
+        }
+
+        .chart-wrapper {
+            background: rgba(255, 255, 255, 0.92);
+            border-radius: 15px;
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+            padding: 15px;
+            height: 300px;
+            /* Increased height for better visualization */
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .chart-wrapper:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
+        }
+
+        .chart-container {
+            width: 100%;
+            height: calc(100% - 30px);
+        }
+
+        .chart-title {
+            font-size: 18px;
+            /* Larger title for 4 channels */
+            font-weight: 600;
+            text-align: center;
+            margin-bottom: 10px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            color: #2a4d69;
+            padding: 8px;
+            background: rgba(224, 224, 224, 0.3);
+            border-radius: 8px;
+        }
+
+        @media (max-width: 768px) {
+            .charts-container {
+                grid-template-columns: 1fr;
+                /* Single column on mobile */
+                gap: 15px;
+            }
+
+            .header h1 {
+                font-size: 2rem;
+            }
+
+            .control-buttons {
+                flex-direction: column;
+                align-items: center;
+            }
+
+            .control-button {
+                padding: 15px 25px;
+                font-size: 18px;
+                min-width: 180px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>EMG Recorder - 4 Channel</h1>
+            <div class="control-buttons">
+                <button id="streamButton" class="control-button">Start Streaming</button>
+                <button id="recordButton" class="control-button" disabled>Start Recording</button>
+            </div>
+            <div id="status">Ready. Click 'Start Streaming'.</div>
+            <!-- Y-Axis Control Slider -->
+            <div class="y-axis-control">
+                <label for="yAxisSlider">Chart Y-Max: <span id="yAxisValue">0.0010</span> V</label>
+                <input type="range" id="yAxisSlider" min="0.0001" max="0.0015" step="0.00005" value="0.001">
+            </div>
+        </div>
+        <div class="charts-container" id="chartsContainer">
+            <!-- Charts will be dynamically inserted here -->
+        </div>
+    </div>
+    <script>
+        const NUM_SENSORS = {{ num_sensors }};
+        const MUSCLE_LABELS = {{ muscle_labels | tojson }};
+        const LIVE_DATA_INTERVAL = 1000; // Slower update - 1 second instead of 100ms
+        // --- 10x slower plots: 50 second window instead of 5 seconds ---
+        const MAX_POINTS_PER_CHART = 100000; // 50 seconds * 2000 Hz
+        // -------------------------------
+        const streamButton = document.getElementById('streamButton');
+        const recordButton = document.getElementById('recordButton');
+        const statusDiv = document.getElementById('status');
+        const yAxisSlider = document.getElementById('yAxisSlider');
+        const yAxisValue = document.getElementById('yAxisValue');
+        let isRequestPending = false;
+        let isCurrentlyStreaming = false;
+        let isCurrentlyRecording = false;
+        let charts = [];
+        let liveDataIntervalId = null;
+
+        // --- Initialize Charts ---
+        function initializeCharts() {
+            const container = document.getElementById('chartsContainer');
+            container.innerHTML = '';
+            charts = [];
+            for (let i = 0; i < NUM_SENSORS; i++) {
+                const wrapper = document.createElement('div');
+                wrapper.className = 'chart-wrapper';
+                const titleDiv = document.createElement('div');
+                titleDiv.className = 'chart-title';
+                titleDiv.id = `chart-title-${i}`;
+                titleDiv.textContent = MUSCLE_LABELS[i] || `Channel ${i}`;
+                wrapper.appendChild(titleDiv);
+                const chartDiv = document.createElement('div');
+                chartDiv.className = 'chart-container';
+                const canvas = document.createElement('canvas');
+                canvas.id = `chart-${i}`;
+                chartDiv.appendChild(canvas);
+                wrapper.appendChild(chartDiv);
+                container.appendChild(wrapper);
+                const ctx = canvas.getContext('2d');
+                const chart = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: [],
+                        datasets: [{
+                            label: 'EMG Amplitude',
+                            data: [],
+                            borderColor: 'rgb(75, 192, 192)',
+                            backgroundColor: 'rgba(75, 192, 192, 0.1)',
+                            borderWidth: 1,
+                            pointRadius: 0,
+                            fill: true
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        animation: false,
+                        scales: {
+                            x: {
+                                display: false,
+                                type: 'linear',
+                                min: 0,
+                            },
+                            y: {
+                                beginAtZero: true,
+                                suggestedMax: parseFloat(yAxisSlider.value),
+                                suggestedMin: -parseFloat(yAxisSlider.value)
+                            }
+                        },
+                        plugins: {
+                            legend: { display: false },
+                            tooltip: { enabled: false }
+                        }
+                    }
+                });
+                charts.push(chart);
+            }
+        }
+
+        // --- Update Charts with Live Data ---
+        async function updateCharts() {
+            if (!isCurrentlyStreaming) return;
+            try {
+                const response = await fetch('/live_data');
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                const data = await response.json();
+                const liveDataChunks = data.data;
+                const labels = data.labels;
+
+                if (!liveDataChunks || liveDataChunks.length !== NUM_SENSORS) {
+                    console.warn("Received unexpected live data format.");
+                    return;
+                }
+
+                for (let ch = 0; ch < NUM_SENSORS; ch++) {
+                    const chart = charts[ch];
+                    const channelData = liveDataChunks[ch];
+                    const label = labels[ch];
+                    const titleElement = document.getElementById(`chart-title-${ch}`);
+
+                    if (titleElement && titleElement.textContent !== label) {
+                        titleElement.textContent = label;
+                    }
+
+                    if (channelData && channelData.length > 0) {
+                        // Show last MAX_POINTS_PER_CHART points for longer time window
+                        let startIndex = Math.max(0, channelData.length - MAX_POINTS_PER_CHART);
+                        let endIndex = channelData.length;
+                        let displayData = channelData.slice(startIndex, endIndex);
+
+                        // X-axis labels: time indices
+                        let xLabels = [];
+                        for (let i = 0; i < displayData.length; i++) {
+                            xLabels.push(i);
+                        }
+
+                        chart.data.labels = xLabels;
+                        chart.data.datasets[0].data = displayData;
+                        chart.options.scales.x.max = Math.max(1, displayData.length - 1);
+                        chart.update();
+                    } else {
+                        chart.data.labels = [];
+                        chart.data.datasets[0].data = [];
+                        chart.update();
+                    }
+                }
+            } catch (error) {
+                console.error("Error fetching or updating live charts:", error);
+            }
+        }
+
+        // --- Start/Stop Live Updates ---
+        function startLiveUpdates() {
+            if (liveDataIntervalId) {
+                clearInterval(liveDataIntervalId);
+            }
+            liveDataIntervalId = setInterval(updateCharts, LIVE_DATA_INTERVAL);
+            console.log("Live chart updates started (slower updates for longer plots).");
+        }
+
+        function stopLiveUpdates() {
+            if (liveDataIntervalId) {
+                clearInterval(liveDataIntervalId);
+                liveDataIntervalId = null;
+                console.log("Live chart updates stopped.");
+            }
+            for (let i = 0; i < charts.length; i++) {
+                const chart = charts[i];
+                chart.data.labels = [];
+                chart.data.datasets[0].data = [];
+                chart.update();
+            }
+        }
+
+        // --- Streaming Control ---
+        streamButton.addEventListener('click', toggleStreaming);
+
+        async function toggleStreaming() {
+            if (isRequestPending) return;
+            isRequestPending = true;
+
+            const action = isCurrentlyStreaming ? 'stop' : 'start';
+            const buttonText = action === 'start' ? "Starting..." : "Stopping...";
+            streamButton.textContent = buttonText;
+            streamButton.disabled = true;
+            updateStatus(`${action.charAt(0).toUpperCase() + action.slice(1)}ing streaming...`, 'info');
+
+            try {
+                const response = await fetch('/toggle_streaming', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ action: action })
+                });
+
+                const data = await response.json();
+                if (data.success) {
+                    isCurrentlyStreaming = !isCurrentlyStreaming;
+                    updateStreamButtonState(isCurrentlyStreaming);
+                    recordButton.disabled = !isCurrentlyStreaming;
+
+                    if (isCurrentlyStreaming) {
+                        updateStatus("Streaming started. Click 'Start Recording' to capture data.", 'success');
+                        startLiveUpdates();
+                    } else {
+                        updateStatus("Streaming stopped.", 'info');
+                        stopLiveUpdates();
+                        if (isCurrentlyRecording) {
+                            isCurrentlyRecording = false;
+                            updateRecordButtonState(false, "Start Recording");
+                            updateStatus("Streaming stopped, recording cancelled.", 'warning');
+                        }
+                    }
+                } else {
+                    updateStatus('Error: ' + data.message, 'error');
+                    updateStreamButtonState(isCurrentlyStreaming);
+                    recordButton.disabled = !isCurrentlyStreaming;
+                }
+            } catch (error) {
+                console.error('Streaming toggle error:', error);
+                updateStatus('Error: Failed to connect to server.', 'error');
+                updateStreamButtonState(isCurrentlyStreaming);
+                recordButton.disabled = !isCurrentlyStreaming;
+            } finally {
+                isRequestPending = false;
+                setTimeout(() => {
+                    if (!isRequestPending) {
+                        streamButton.disabled = false;
+                    }
+                }, 500);
+            }
+        }
+
+        function updateStreamButtonState(isStreaming) {
+            streamButton.textContent = isStreaming ? "Stop Streaming" : "Start Streaming";
+            if (isStreaming) {
+                streamButton.classList.add('streaming');
+            } else {
+                streamButton.classList.remove('streaming');
+            }
+        }
+
+        // --- Click-to-Record Control ---
+        recordButton.addEventListener('click', toggleRecording);
+
+        async function toggleRecording() {
+            if (isRequestPending || !isCurrentlyStreaming) return;
+            isRequestPending = true;
+
+            const action = isCurrentlyRecording ? 'stop' : 'start';
+            const buttonText = action === 'start' ? "Starting..." : "Stopping...";
+            recordButton.textContent = buttonText;
+            recordButton.disabled = true;
+            updateStatus(`${action.charAt(0).toUpperCase() + action.slice(1)}ing recording...`, 'info');
+
+            try {
+                const response = await fetch('/toggle_recording', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                const data = await response.json();
+
+                if (data.success) {
+                    isCurrentlyRecording = data.recording;
+                    if (isCurrentlyRecording) {
+                        updateRecordButtonState(true, "Stop Recording");
+                        updateStatus(data.message, 'success');
+                    } else {
+                        updateRecordButtonState(false, "Start Recording");
+                        updateStatus(data.message, 'success');
+                    }
+                } else {
+                    updateStatus('Error: ' + data.message, 'error');
+                    updateRecordButtonState(isCurrentlyRecording, isCurrentlyRecording ? "Stop Recording" : "Start Recording");
+                }
+            } catch (error) {
+                console.error('Recording toggle error:', error);
+                updateStatus('Error: Failed to connect to server.', 'error');
+                updateRecordButtonState(isCurrentlyRecording, isCurrentlyRecording ? "Stop Recording" : "Start Recording");
+            } finally {
+                isRequestPending = false;
+                recordButton.disabled = false;
+            }
+        }
+
+        function updateRecordButtonState(isRecording, text) {
+            recordButton.textContent = text;
+            if (isRecording) {
+                recordButton.classList.add('recording');
+            } else {
+                recordButton.classList.remove('recording');
+            }
+        }
+
+        function updateStatus(message, typeClass = '') {
+            statusDiv.textContent = message;
+            statusDiv.className = typeClass;
+        }
+
+        // --- Y-Axis Slider Control ---
+        function updateYAxisMax() {
+            const newMax = parseFloat(yAxisSlider.value);
+            yAxisValue.textContent = newMax.toFixed(4);
+            for (let i = 0; i < charts.length; i++) {
+                const chart = charts[i];
+                if (chart && chart.options?.scales?.y) {
+                    chart.options.scales.y.suggestedMax = newMax;
+                    chart.options.scales.y.suggestedMin = -newMax;
+                    chart.update();
+                }
+            }
+        }
+        yAxisSlider.addEventListener('input', updateYAxisMax);
+
+        // --- Initialize on Load ---
+        window.onload = function () {
+            initializeCharts();
+            updateStatus("System ready. Click 'Start Streaming' to begin visualizing 4-channel EMG data.", 'info');
+            yAxisValue.textContent = parseFloat(yAxisSlider.value).toFixed(4);
+            recordButton.disabled = true;
+        };
+    </script>
+</body>
+
+</html>
