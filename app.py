@@ -1,4 +1,4 @@
-# app.py - Updated for click-to-record with 4 channels
+# app.py - EMG Data Streaming and Recording Application
 
 import os
 import numpy as np
@@ -34,9 +34,9 @@ def select_save_directory():
 
 app = Flask(__name__)
 
-# --- Configuration ---
-HOST_IP = '127.0.0.1'  # Use localhost IP explicitly
-NUM_SENSORS = 4  # Reduced from 16 to 4
+# Configuration
+HOST_IP = '127.0.0.1'
+NUM_SENSORS = 4
 SAMPLING_RATE = 2000.0
 
 # Let user select save directory before starting
@@ -48,25 +48,23 @@ except Exception as e:
     SAVE_DIRECTORY = "./recordings"
     os.makedirs(SAVE_DIRECTORY, exist_ok=True)
 
-# --- Global State ---
+# Global State
 handler = None
-recording_data_buffer = [[] for _ in range(NUM_SENSORS + 1)] # [0] for timestamps (if needed later), [1:] for channels
+recording_data_buffer = [[] for _ in range(NUM_SENSORS + 1)]
 recording_lock = threading.Lock()
-is_recording_flag = False  # Flag for active recording period
-start_time = None  # Recording start time for the current *segment*
+is_recording_flag = False
+start_time = None
 
-# --- Recording Session Info ---
+# Recording Session Info
 recording_session_start_time = None
 trial_counter = 1
 
-# --- Live Data Buffering for GUI ---
-# Increased buffer size to store up to 3 seconds of data (2000 Hz * 3 seconds = 6000 samples)
-# Since each chunk contains 1 sample, we need 6000 chunks
+# Live Data Buffering for GUI
 LIVE_BUFFER_CHUNKS = 6000
 live_data_buffers = [collections.deque(maxlen=LIVE_BUFFER_CHUNKS) for _ in range(NUM_SENSORS)]
 live_data_lock = threading.Lock()
 
-# --- Helper Functions ---
+# Helper Functions
 
 def recording_worker():
     """Worker thread to read data from the handler's queue continuously."""
@@ -74,7 +72,7 @@ def recording_worker():
     local_sample_count = 0
     print("🔄 Recording/Streaming worker started.")
     try:
-        while handler and handler.streaming: # Keep running as long as streaming is active
+        while handler and handler.streaming:
             try:
                 processed_data = handler.output_queue.get(timeout=1.0)
                 channel_id = processed_data['channel']
@@ -94,15 +92,15 @@ def recording_worker():
 
                 # Conditionally record data based on is_recording_flag
                 with recording_lock:
-                    if is_recording_flag: # Only record if flag is set
+                    if is_recording_flag:
                         recording_data_buffer[channel_id + 1].extend(samples)
                         local_sample_count += len(samples)
                         # Set start_time for the recording segment only
-                        if start_time is None and local_sample_count == len(samples): # First samples of recording
+                        if start_time is None and local_sample_count == len(samples):
                             start_time = time.time()
                             print(f"📍 Recording segment start time set: {start_time}")
 
-                # Debug: Print first few samples (less frequently now)
+                # Debug: Print first few samples
                 if local_sample_count < 100 and is_recording_flag:
                      print(f"Recording Ch{channel_id}: {samples[0]:.6f} ({muscle_label})")
                 elif local_sample_count == 100 and is_recording_flag:
@@ -151,7 +149,7 @@ def start_delsys_streaming():
         print(f"🚀 Starting Delsys handler with IP: {HOST_IP}")
 
         # Create new handler instance
-        handler = DelsysDataHandler(host_ip=HOST_IP, num_sensors=16,  # Keep 16 for protocol compatibility
+        handler = DelsysDataHandler(host_ip=HOST_IP, num_sensors=16,
                                   sampling_rate=SAMPLING_RATE, envelope=False)
 
         # Attempt to start streaming
@@ -190,18 +188,18 @@ def stop_delsys_streaming():
         # Ensure any ongoing recording is stopped first
         if is_recording_flag:
              print("⚠️ Stopping recording before stopping stream...")
-             stop_delsys_recording() # This will handle saving and resetting the recording state
+             stop_delsys_recording()
 
-        with recording_lock: # Acquire lock for safety
+        with recording_lock:
             # Signal to stop streaming
             if handler and handler.streaming:
                  print("🛑 Stopping Delsys handler streaming...")
                  handler.stop_streaming()
-                 handler = None # Clear handler reference
+                 handler = None
             else:
                  print("⚠️ Handler was not streaming or already stopped.")
                  if handler:
-                     handler = None # Clear anyway
+                     handler = None
 
             # Reset states regardless
             is_recording_flag = False
@@ -248,7 +246,7 @@ def start_recording_segment():
             # Clear buffers for the new recording segment
             for i in range(len(recording_data_buffer)):
                 recording_data_buffer[i].clear()
-            start_time = None # Reset start time for new segment
+            start_time = None
 
             is_recording_flag = True
             print(f"⏺️ Recording segment started (Trial #{trial_counter}).")
@@ -265,10 +263,10 @@ def stop_delsys_recording():
         with recording_lock:
             if not is_recording_flag:
                 return False, "No recording segment in progress."
-            is_recording_flag = False # Stop recording into buffer immediately
+            is_recording_flag = False
             print("🛑 Recording flag set to False for current segment.")
 
-        time.sleep(0.1)  # Allow worker thread to finish processing current queue items for this segment
+        time.sleep(0.1)
 
         # Load muscle labels from YAML configuration file
         muscle_labels = load_muscle_labels()
@@ -277,7 +275,7 @@ def stop_delsys_recording():
         success, message, min_samples = save_emg_recording(
             save_directory=SAVE_DIRECTORY,
             recording_data_buffer=recording_data_buffer,
-            start_time=start_time, # Pass the start time of the *segment*
+            start_time=start_time,
             sampling_rate=SAMPLING_RATE,
             muscle_labels=muscle_labels,
             recording_session_start_time=recording_session_start_time,
@@ -291,7 +289,7 @@ def stop_delsys_recording():
 
         if success:
             print(f"✅ Recording segment #{trial_counter} saved successfully ({min_samples} samples).")
-            trial_counter += 1 # Increment for the *next* recording
+            trial_counter += 1
             return True, f"Recording segment #{trial_counter - 1} saved successfully ({min_samples} samples)."
         else:
             print(f"❌ Error saving recording segment #{trial_counter}: {message}")
@@ -318,7 +316,7 @@ def load_muscle_labels():
         print(f"❌ Error loading muscle labels: {e}. Using default labels.")
         return ['L-TIBI', 'L-GAST', 'L-RECT', 'R-TIBI']
 
-# --- Flask Routes ---
+# Flask Routes
 
 @app.route('/')
 def index():
@@ -343,7 +341,7 @@ def toggle_streaming():
              return jsonify({'success': success, 'message': message, 'streaming': success})
          elif action == 'stop':
              success, message = stop_delsys_streaming()
-             return jsonify({'success': success, 'message': message, 'streaming': not success}) # streaming becomes False after stop
+             return jsonify({'success': success, 'message': message, 'streaming': not success})
          else:
              return jsonify({'success': False, 'message': 'Invalid action. Use "start" or "stop".'})
 

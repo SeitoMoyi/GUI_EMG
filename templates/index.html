@@ -1,4 +1,4 @@
-<!-- templates/index.html - Updated for click-to-record, 4 channels, and proper 3-second visualization -->
+<!-- templates/index.html - EMG Recorder Interface -->
 <!DOCTYPE html>
 <html lang="en">
 
@@ -196,7 +196,6 @@
         .charts-container {
             display: grid;
             grid-template-columns: repeat(2, 1fr);
-            /* 2x2 grid for 4 channels */
             gap: 20px;
             margin-top: 10px;
         }
@@ -270,7 +269,6 @@
             box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
             padding: 15px;
             height: 300px;
-            /* Increased height for better visualization */
             transition: transform 0.3s ease, box-shadow 0.3s ease;
         }
 
@@ -286,7 +284,6 @@
 
         .chart-title {
             font-size: 18px;
-            /* Larger title for 4 channels */
             font-weight: 600;
             text-align: center;
             margin-bottom: 10px;
@@ -302,7 +299,6 @@
         @media (max-width: 768px) {
             .charts-container {
                 grid-template-columns: 1fr;
-                /* Single column on mobile */
                 gap: 15px;
             }
 
@@ -351,13 +347,11 @@
     <script>
         const NUM_SENSORS = {{ num_sensors }};
         const MUSCLE_LABELS = {{ muscle_labels | tojson }};
-        const SAMPLING_RATE = 2000; // 2000 Hz
-        // Update every 50ms as requested
+        const SAMPLING_RATE = 2000;
         const LIVE_DATA_INTERVAL = 50;
-        // Default to 3 seconds time history
         let timeHistorySeconds = 3.0;
         let MAX_POINTS_PER_CHART = Math.floor(SAMPLING_RATE * timeHistorySeconds);
-        // -------------------------------
+        
         const streamButton = document.getElementById('streamButton');
         const recordButton = document.getElementById('recordButton');
         const statusDiv = document.getElementById('status');
@@ -410,7 +404,7 @@
                         animation: false,
                         scales: {
                             x: {
-                                display: false, // Remove x-axis labels as requested
+                                display: false,
                                 type: 'linear',
                                 min: 0,
                                 max: MAX_POINTS_PER_CHART - 1
@@ -473,7 +467,7 @@
 
                         chart.data.labels = xLabels;
                         chart.data.datasets[0].data = displayData;
-                        chart.update('none'); // Use none animation for better performance
+                        chart.update('none');
                     } else {
                         chart.data.labels = [];
                         chart.data.datasets[0].data = [];
@@ -490,7 +484,6 @@
             if (liveDataIntervalId) {
                 clearInterval(liveDataIntervalId);
             }
-            // Update every 50ms as requested
             liveDataIntervalId = setInterval(updateCharts, LIVE_DATA_INTERVAL);
             console.log("Live chart updates started (50ms updates for 3-second plots).");
         }

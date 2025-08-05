@@ -93,10 +93,10 @@ class EMGPlotter:
     def data_consumer_thread(self):
         """Thread to consume data from the queue and update buffers."""
         print("🔄 Data consumer thread started")
-        while self.animating: # Use animating flag for consistency
+        while self.animating:
             try:
                 # Get processed data from the queue
-                processed_data = self.data_queue.get(timeout=0.1) # Timeout to allow checking flag
+                processed_data = self.data_queue.get(timeout=0.1)
                 channel = processed_data['channel']
                 samples = processed_data['samples']
 
@@ -105,7 +105,7 @@ class EMGPlotter:
                     self.emg_buffers[channel].extend(samples)
 
             except queue.Empty:
-                continue # Check flag again
+                continue
             except Exception as e:
                  print(f"❌ Data consumer error: {e}")
                  break
@@ -140,16 +140,16 @@ class EMGPlotter:
                                     interval=50, blit=False, cache_frame_data=False)
         # Show plots
         print("📊 Displaying plots...")
-        plt.show(block=True) # This will block until the window is closed
-        self.animating = False # Set flag to False when window is closed
+        plt.show(block=True)
+        self.animating = False
 
     def stop_animation(self):
         """Stop the plotting animation."""
         print("🛑 Stopping animation...")
         self.animating = False
         if self.ani_emg:
-            self.ani_emg.event_source.stop() # Stop the animation timer
-        plt.close(self.fig_emg) # Close the figure window
+            self.ani_emg.event_source.stop()
+        plt.close(self.fig_emg)
 
 # Example usage if run directly (for testing plotter)
 if __name__ == "__main__":
@@ -168,7 +168,7 @@ if __name__ == "__main__":
     signal.signal(signal.SIGINT, signal_handler)
 
     # Configuration
-    HOST_IP = 'localhost' # Replace with actual IP if needed
+    HOST_IP = 'localhost'
     NUM_SENSORS = 16
     SAMPLING_RATE = 2000.0
 
@@ -189,7 +189,7 @@ if __name__ == "__main__":
         if handler.start_streaming():
             print("✅ Data streaming started.")
             print("📊 Starting plotter...")
-            plotter.start_animation() # This will block
+            plotter.start_animation()
         else:
             print("❌ Failed to start data streaming")
     except KeyboardInterrupt:

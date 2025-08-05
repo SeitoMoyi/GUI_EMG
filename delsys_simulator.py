@@ -67,27 +67,27 @@ class DelsysSimulator:
                 # No connection - just baseline noise (5-15 µV)
                 profiles[i] = {
                     'name': name,
-                    'base_amplitude': np.random.uniform(5e-6, 15e-6),  # 5-15 µV baseline noise
+                    'base_amplitude': np.random.uniform(5e-6, 15e-6),
                     'frequency': 0.0,
                     'burst_frequency': 0.0,
-                    'noise_level': np.random.uniform(3e-6, 8e-6),  # 3-8 µV noise
+                    'noise_level': np.random.uniform(3e-6, 8e-6),
                     'max_activation': 0.0
                 }
             else:
                 # Active muscle with realistic EMG parameters
                 # Typical EMG ranges: 10-800 µV for surface EMG
-                base_activation = np.random.uniform(20e-6, 80e-6)  # 20-80 µV resting
-                max_activation = np.random.uniform(200e-6, 800e-6)  # 200-800 µV max
+                base_activation = np.random.uniform(20e-6, 80e-6)
+                max_activation = np.random.uniform(200e-6, 800e-6)
                 
                 profiles[i] = {
                     'name': name,
                     'base_amplitude': base_activation,
-                    'frequency': np.random.uniform(80, 120),  # Main EMG frequency (80-120 Hz)
-                    'burst_frequency': np.random.uniform(0.3, 1.5),  # Burst pattern (0.3-1.5 Hz)
-                    'noise_level': np.random.uniform(8e-6, 20e-6),  # 8-20 µV noise
+                    'frequency': np.random.uniform(80, 120),
+                    'burst_frequency': np.random.uniform(0.3, 1.5),
+                    'noise_level': np.random.uniform(8e-6, 20e-6),
                     'max_activation': max_activation,
-                    'contraction_threshold': np.random.uniform(0.998, 0.9995),  # Rare contractions
-                    'fatigue_factor': np.random.uniform(0.95, 0.99)  # Slight amplitude decay over time
+                    'contraction_threshold': np.random.uniform(0.998, 0.9995),
+                    'fatigue_factor': np.random.uniform(0.95, 0.99)
                 }
                 
                 print(f"   📊 {name}: Rest={base_activation*1e6:.1f}µV, Max={max_activation*1e6:.1f}µV")
@@ -98,19 +98,19 @@ class DelsysSimulator:
         """Generate a realistic EMG sample with sub-millivolt amplitudes"""
         if channel_id not in self.muscle_profiles:
             # Fallback noise for undefined channels
-            return np.random.normal(0, 10e-6)  # 10 µV noise
+            return np.random.normal(0, 10e-6)
         
         profile = self.muscle_profiles[channel_id]
         
         # Base electrical noise (always present)
         base_noise = np.random.normal(0, profile['noise_level'])
         
-        if profile['frequency'] == 0.0:  # NC channels
+        if profile['frequency'] == 0.0:
             return base_noise
         
         # Simulate realistic EMG signal characteristics
         
-        # 1. Main EMG frequency content (motor unit firing patterns)
+        # Main EMG frequency content (motor unit firing patterns)
         # Multiple frequency components to simulate motor unit recruitment
         main_freq = profile['frequency']
         emg_signal = (
@@ -118,24 +118,24 @@ class DelsysSimulator:
             0.6 * np.sin(2 * np.pi * main_freq * 1.3 * timestamp) +
             0.4 * np.sin(2 * np.pi * main_freq * 0.7 * timestamp) +
             0.3 * np.sin(2 * np.pi * main_freq * 2.1 * timestamp) +
-            0.2 * np.random.random()  # Random motor unit activity
+            0.2 * np.random.random()
         )
         
-        # 2. Rectify and apply realistic amplitude modulation
+        # Rectify and apply realistic amplitude modulation
         emg_signal = np.abs(emg_signal)
         
-        # 3. Muscle activation level (varies over time)
+        # Muscle activation level (varies over time)
         # Base activation level
         activation_level = profile['base_amplitude']
         
         # Add slow muscle activation variations (breathing, posture changes)
-        slow_modulation = 1.0 + 0.3 * np.sin(2 * np.pi * 0.1 * timestamp)  # 0.1 Hz breathing
-        slow_modulation += 0.2 * np.sin(2 * np.pi * 0.05 * timestamp)  # 0.05 Hz posture
+        slow_modulation = 1.0 + 0.3 * np.sin(2 * np.pi * 0.1 * timestamp)
+        slow_modulation += 0.2 * np.sin(2 * np.pi * 0.05 * timestamp)
         
         # Add muscle burst patterns (voluntary or involuntary contractions)
         burst_modulation = 1.0 + 0.4 * np.sin(2 * np.pi * profile['burst_frequency'] * timestamp)
         
-        # 4. Occasional strong contractions (very rare)
+        # Occasional strong contractions (very rare)
         contraction_multiplier = 1.0
         if np.random.random() > profile['contraction_threshold']:
             # Strong contraction (reaches max activation)
@@ -146,10 +146,10 @@ class DelsysSimulator:
             print(f"💪 {profile['name']}: Strong contraction! "
                   f"{activation_level * contraction_multiplier * 1e6:.0f}µV")
         
-        # 5. Apply fatigue factor (slight decrease over time)
-        fatigue_factor = profile['fatigue_factor'] ** (timestamp / 60.0)  # Per minute
+        # Apply fatigue factor (slight decrease over time)
+        fatigue_factor = profile['fatigue_factor'] ** (timestamp / 60.0)
         
-        # 6. Combine all components
+        # Combine all components
         final_amplitude = (
             activation_level * 
             slow_modulation * 
@@ -158,10 +158,10 @@ class DelsysSimulator:
             fatigue_factor
         )
         
-        # 7. Apply to EMG signal and add noise
+        # Apply to EMG signal and add noise
         final_signal = emg_signal * final_amplitude + base_noise
         
-        # 8. Ensure signal stays within realistic bounds (never above 1mV)
+        # Ensure signal stays within realistic bounds (never above 1mV)
         final_signal = np.clip(final_signal, -1e-3, 1e-3)
         
         return final_signal
@@ -231,7 +231,7 @@ class DelsysSimulator:
                         if command == 'START':
                             print("▶️  Processing START command")
                             self.streaming = True
-                            # Send acknowledgment (some systems expect this)
+                            # Send acknowledgment
                             try:
                                 self.command_conn.send(b'OK\r\n')
                             except:
@@ -336,7 +336,7 @@ class DelsysSimulator:
         """Generate and send EMG data when triggered"""
         print("🎲 Data generator worker started")
         
-        sample_interval = 1.0 / self.sampling_rate  # Time between samples
+        sample_interval = 1.0 / self.sampling_rate
         next_sample_time = time.time()
         sample_count = 0
         
@@ -360,7 +360,7 @@ class DelsysSimulator:
                     # Pad remaining channels with realistic noise to maintain 16-channel protocol
                     while len(emg_samples) < 16:
                         # Add small noise for unused channels
-                        noise_sample = np.random.normal(0, 5e-6)  # 5 µV noise
+                        noise_sample = np.random.normal(0, 5e-6)
                         emg_samples.append(float(noise_sample))
                     
                     # Pack as 16 little-endian floats (64 bytes total)
@@ -372,7 +372,7 @@ class DelsysSimulator:
                         next_sample_time += sample_interval
                         
                         # Debug output (less frequent) - show in microvolts for readability
-                        if sample_count % 4000 == 0:  # Every 2 seconds at 2kHz
+                        if sample_count % 4000 == 0:
                             print(f"📊 Sent {sample_count} samples | " +
                                   " | ".join([f"Ch{i}: {emg_samples[i]*1e6:+4.0f}µV" 
                                             for i in range(min(4, self.num_sensors))]))
@@ -384,7 +384,7 @@ class DelsysSimulator:
                 
                 else:
                     # Sleep briefly to avoid busy waiting
-                    time.sleep(0.0001)  # 0.1ms
+                    time.sleep(0.0001)
                 
             except Exception as e:
                 print(f"❌ Error in data generator: {e}")

@@ -33,7 +33,7 @@ def save_emg_recording(save_directory, recording_data_buffer, start_time, sampli
         os.makedirs(structs_directory, exist_ok=True)
         
         # Analyze data and find minimum sample count
-        num_sensors = len(recording_data_buffer) - 1  # Exclude timestamp buffer
+        num_sensors = len(recording_data_buffer) - 1
         sample_counts = [len(recording_data_buffer[i]) for i in range(1, num_sensors + 1)]
         
         if not sample_counts or all(count == 0 for count in sample_counts):
@@ -51,7 +51,7 @@ def save_emg_recording(save_directory, recording_data_buffer, start_time, sampli
         # Create data matrix in MATLAB-compatible format: (samples, channels+1)
         # First column: timestamps, subsequent columns: channel data
         data_matrix = np.zeros((min_samples, num_sensors + 1), dtype=np.float64)
-        data_matrix[:, 0] = timestamps  # First column is timestamps
+        data_matrix[:, 0] = timestamps
         
         # Fill in channel data, ensuring all channels have the same length
         for i in range(1, num_sensors + 1):

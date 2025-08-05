@@ -1,4 +1,4 @@
-# delsys_handler.py - Updated for 4 channels
+# delsys_handler.py - Handles connection and data streaming from Delsys Trigno system
 import socket
 import struct
 import threading
@@ -17,8 +17,8 @@ class DelsysDataHandler:
     
     def __init__(self, host_ip='127.0.0.1', num_sensors=16, sampling_rate=2000.0, envelope=False):
         self.host_ip = host_ip
-        self.num_sensors = num_sensors  # Keep 16 for protocol compatibility
-        self.active_channels = 4  # Only process first 4 channels
+        self.num_sensors = num_sensors
+        self.active_channels = 4
         self.sampling_rate = sampling_rate
         self.envelope = envelope
         
@@ -57,13 +57,13 @@ class DelsysDataHandler:
             
             # Create command socket
             self.command_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            self.command_socket.settimeout(10.0)  # 10 second timeout
+            self.command_socket.settimeout(10.0)
             self.command_socket.connect((self.host_ip, self.EMG_COMMAND_PORT))
             print(f"Command socket connected to port {self.EMG_COMMAND_PORT}")
             
             # Create stream socket
             self.stream_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            self.stream_socket.settimeout(10.0)  # 10 second timeout
+            self.stream_socket.settimeout(10.0)
             self.stream_socket.connect((self.host_ip, self.EMG_STREAM_PORT))
             print(f"Stream socket connected to port {self.EMG_STREAM_PORT}")
             
@@ -130,7 +130,7 @@ class DelsysDataHandler:
                 except socket.timeout:
                     continue
                 except Exception as e:
-                    if self.streaming:  # Only print if we're supposed to be streaming
+                    if self.streaming:
                         print(f"Stream worker error: {e}")
                     break
                     
