@@ -88,9 +88,14 @@ class DelsysDataHandler:
     def load_muscle_labels(self):
         """Load muscle labels from YAML configuration file."""
         try:
-            with open('muscle_labels.yaml', 'r') as f:
+            import os
+            yaml_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'muscle_labels.yaml')
+            print(f"🔍 Looking for muscle labels file at: {yaml_path}")
+            with open(yaml_path, 'r') as f:
                 config = yaml.safe_load(f)
-                return config.get('muscle_labels', ['L-TIBI', 'L-GAST', 'L-RECT', 'R-TIBI'])[:self.active_channels]
+                muscle_labels = config.get('muscle_labels', ['L-TIBI', 'L-GAST', 'L-RECT', 'R-TIBI'])[:self.active_channels]
+                print(f"✅ Loaded muscle labels: {muscle_labels}")
+                return muscle_labels
         except FileNotFoundError:
             print("⚠️  muscle_labels.yaml not found. Using default labels.")
             return ['L-TIBI', 'L-GAST', 'L-RECT', 'R-TIBI']

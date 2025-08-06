@@ -307,9 +307,14 @@ def stop_delsys_recording():
 def load_muscle_labels():
     """Load muscle labels from YAML configuration file."""
     try:
-        with open('muscle_labels.yaml', 'r') as f:
+        import os
+        yaml_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'muscle_labels.yaml')
+        print(f"🔍 Looking for muscle labels file at: {yaml_path}")
+        with open(yaml_path, 'r') as f:
             config = yaml.safe_load(f)
-            return config.get('muscle_labels', ['L-TIBI', 'L-GAST', 'L-RECT', 'R-TIBI'])[:NUM_SENSORS]
+            muscle_labels = config.get('muscle_labels', ['L-TIBI', 'L-GAST', 'L-RECT', 'R-TIBI'])[:NUM_SENSORS]
+            print(f"✅ Loaded muscle labels: {muscle_labels}")
+            return muscle_labels
     except FileNotFoundError:
         print("⚠️  muscle_labels.yaml not found. Using default labels.")
         return ['L-TIBI', 'L-GAST', 'L-RECT', 'R-TIBI']
@@ -324,6 +329,7 @@ def index():
     try:
         # Load labels from YAML configuration file
         labels = load_muscle_labels()
+        print(f"📤 Sending muscle labels to template: {labels}")
         return render_template('index.html', num_sensors=NUM_SENSORS, muscle_labels=labels)
     except Exception as e:
         print(f"❌ Error in index route: {e}")
@@ -384,7 +390,16 @@ def live_data():
                 if live_data_buffers[i] and len(live_data_buffers[i]) > 0:
                     labels.append(live_data_buffers[i][-1]['label'])
                 else:
-                    labels.append(f'Ch{i}')
+                    # Use muscle labels from the YAML config if available
+                    try:
+                        muscle_labels = load_muscle_labels()
+                        if i < len(muscle_labels):
+                            labels.append(muscle_labels[i])
+                        else:
+                            labels.append(f'Ch{i}')
+                    except:
+                        labels.append(f'Ch{i}')
+            print(f"📤 Sending live data with labels: {labels}")  # Debug line
         return jsonify({'data': data_chunks, 'labels': labels})
     except Exception as e:
         print(f"❌ Error fetching live data: {e}")
