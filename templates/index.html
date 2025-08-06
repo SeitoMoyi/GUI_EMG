@@ -336,8 +336,8 @@
             </div>
             <!-- Y-Axis Control Slider -->
             <div class="y-axis-control">
-                <label for="yAxisSlider">Chart Y-Max: <span id="yAxisValue">0.0010</span> V</label>
-                <input type="range" id="yAxisSlider" min="0.0001" max="0.0015" step="0.00005" value="0.001">
+                <label for="yAxisSlider">Chart Y-Max: <span id="yAxisValue">0.0008</span> V</label>
+                <input type="range" id="yAxisSlider" min="0.0001" max="0.0015" step="0.00005" value="0.0008">
             </div>
         </div>
         <div class="charts-container" id="chartsContainer">
@@ -412,7 +412,7 @@
                             y: {
                                 beginAtZero: true,
                                 suggestedMax: parseFloat(yAxisSlider.value),
-                                suggestedMin: -parseFloat(yAxisSlider.value)
+                                suggestedMin: 0  // Since data is rectified, no negative values
                             }
                         },
                         plugins: {
@@ -651,7 +651,7 @@
                 const chart = charts[i];
                 if (chart && chart.options?.scales?.y) {
                     chart.options.scales.y.suggestedMax = newMax;
-                    chart.options.scales.y.suggestedMin = -newMax;
+                    chart.options.scales.y.suggestedMin = 0;  // Since data is rectified, no negative values
                     chart.update('none');
                 }
             }

@@ -7,6 +7,7 @@ import numpy as np
 import queue
 from collections import deque
 import yaml
+from scipy import signal
 
 class DelsysDataHandler:
     """
@@ -34,8 +35,55 @@ class DelsysDataHandler:
         # Output queue for processed data
         self.output_queue = queue.Queue(maxsize=1000)
         
+        # Signal processing elements
+        self._design_filters()
+        self._initialize_filter_states()
+        
         # Load muscle labels from YAML configuration file
         self.muscle_labels = self.load_muscle_labels()
+        
+    def _design_filters(self):
+        """Design the filters needed for signal processing"""
+        # Design 60Hz notch filter
+        self.notch_freq = 60.0
+        Q = 30.0  # Quality factor for the notch filter
+        b, a = signal.iirnotch(self.notch_freq, Q, self.sampling_rate)
+        self.notch_b = b
+        self.notch_a = a
+        
+        # Design DC removal filter (High-pass at 0.5Hz)
+        self.hp_freq = 0.5
+        hp_b, hp_a = signal.butter(2, self.hp_freq / (self.sampling_rate / 2), 'high')
+        self.dc_block_b = hp_b
+        self.dc_block_a = hp_a
+    
+    def _initialize_filter_states(self):
+        """Initialize filter states for each channel"""
+        self.notch_zi = {}
+        self.dc_block_zi = {}
+        for ch in range(self.active_channels):
+            # Initialize filter states to zero
+            self.notch_zi[ch] = signal.lfilter_zi(self.notch_b, self.notch_a)
+            self.dc_block_zi[ch] = signal.lfilter_zi(self.dc_block_b, self.dc_block_a)
+    
+    def _process_emg_sample(self, sample_value, channel_id):
+        """Apply signal processing to a single EMG sample"""
+        # Apply DC removal (high-pass filter)
+        dc_removed, self.dc_block_zi[channel_id] = signal.lfilter(
+            self.dc_block_b, self.dc_block_a, [sample_value], zi=self.dc_block_zi[channel_id]
+        )
+        dc_removed = dc_removed[0]
+        
+        # Apply 60Hz notch filter
+        notched, self.notch_zi[channel_id] = signal.lfilter(
+            self.notch_b, self.notch_a, [dc_removed], zi=self.notch_zi[channel_id]
+        )
+        notched = notched[0]
+        
+        # Apply rectification
+        rectified = abs(notched)
+        
+        return rectified
         
     def load_muscle_labels(self):
         """Load muscle labels from YAML configuration file."""
@@ -108,10 +156,13 @@ class DelsysDataHandler:
                     for channel_id in range(self.active_channels):
                         sample_value = emg_data[channel_id]
                         
+                        # Apply signal processing
+                        processed_value = self._process_emg_sample(sample_value, channel_id)
+                        
                         # Create processed data packet
                         processed_data = {
                             'channel': channel_id,
-                            'samples': np.array([sample_value], dtype=np.float64),
+                            'samples': np.array([processed_value], dtype=np.float64),
                             'muscle_label': self.muscle_labels[channel_id] if channel_id < len(self.muscle_labels) else f'Ch{channel_id}',
                             'timestamp': time.time()
                         }

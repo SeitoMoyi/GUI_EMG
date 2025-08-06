@@ -68,7 +68,7 @@ class EMGPlotter:
             ax.grid(True, color=[0.9725, 0.9725, 0.9725], alpha=0.3)
             ax.tick_params(colors=[0.9725, 0.9725, 0.9725])
 
-            # Set initial y-limits (might need adjustment based on actual data)
+            # Set initial y-limits (adjusted for processed EMG data)
             ax.set_ylim([0, 0.002])
             ax.set_xlim([0, self.buffer_size])
 

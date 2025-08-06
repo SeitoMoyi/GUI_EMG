@@ -100,11 +100,12 @@ def recording_worker():
                             start_time = time.time()
                             print(f"📍 Recording segment start time set: {start_time}")
 
-                # Debug: Print first few samples
+                # Debug: Print first few samples with more context
                 if local_sample_count < 100 and is_recording_flag:
-                     print(f"Recording Ch{channel_id}: {samples[0]:.6f} ({muscle_label})")
+                    timestamp = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime())
+                    print(f"[{timestamp}] 📏 Recording Ch{channel_id+1}/{NUM_SENSORS}: {samples[0]:.6f} V ({muscle_label}) | Sample count: {local_sample_count}")
                 elif local_sample_count == 100 and is_recording_flag:
-                     print("Suppressing further recording debug prints for this segment...")
+                    print(f"Suppressing further recording debug prints for this segment (Ch{channel_id})...")
 
             except queue.Empty:
                 continue
@@ -402,7 +403,11 @@ def status():
             'buffer_sizes': [len(buf) for buf in recording_data_buffer],
             'save_directory': SAVE_DIRECTORY,
             'trial_counter': trial_counter,
-            'session_start_time': recording_session_start_time.isoformat() if recording_session_start_time else None
+            'session_start_time': recording_session_start_time.isoformat() if recording_session_start_time else None,
+            'system_time': datetime.datetime.now().isoformat(),
+            'buffer_capacity': LIVE_BUFFER_CHUNKS,
+            'sampling_rate': SAMPLING_RATE,
+            'active_channels': NUM_SENSORS
         }
         return jsonify(status_info)
     except Exception as e:

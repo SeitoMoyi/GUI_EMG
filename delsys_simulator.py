@@ -121,6 +121,9 @@ class DelsysSimulator:
             0.2 * np.random.random()
         )
         
+        # Add DC offset to simulate real-world conditions
+        dc_offset = np.random.uniform(-50e-6, 50e-6)
+        
         # Rectify and apply realistic amplitude modulation
         emg_signal = np.abs(emg_signal)
         
@@ -158,8 +161,8 @@ class DelsysSimulator:
             fatigue_factor
         )
         
-        # Apply to EMG signal and add noise
-        final_signal = emg_signal * final_amplitude + base_noise
+        # Apply to EMG signal and add noise and DC offset
+        final_signal = emg_signal * final_amplitude + base_noise + dc_offset
         
         # Ensure signal stays within realistic bounds (never above 1mV)
         final_signal = np.clip(final_signal, -1e-3, 1e-3)
