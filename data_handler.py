@@ -1,12 +1,11 @@
-# emg_data_saver.py
-"""
-Dedicated module for saving EMG data in the correct format for MATLAB compatibility.
-This module ensures data is saved as (samples, channels+1) matrix format.
-"""
+"""Data handling module for EMG application."""
+
 import numpy as np
 import scipy.io
 import os
 import datetime
+from utils import load_muscle_labels
+
 
 def save_emg_recording(save_directory, recording_data_buffer, start_time, sampling_rate, 
                       muscle_labels, recording_session_start_time, trial_counter):
@@ -105,12 +104,14 @@ def save_emg_recording(save_directory, recording_data_buffer, start_time, sampli
     except Exception as e:
         return False, f"Error saving recording: {str(e)}", 0
 
+
 def generate_timestamps(num_samples, start_time, sampling_rate):
     """Generate relative timestamps starting from 0."""
     # Always generate relative timestamps starting from 0
     # This matches the format expected by MATLAB and used in debug_data_saver.py
     # The start_time parameter is not used in this implementation but kept for compatibility
     return np.arange(num_samples, dtype=np.float64) / sampling_rate
+
 
 def save_metadata(meta_filename, num_sensors, sampling_rate, muscle_labels, 
                  recording_session_start_time, trial_counter):
@@ -134,6 +135,7 @@ def save_metadata(meta_filename, num_sensors, sampling_rate, muscle_labels,
     except Exception as e:
         print(f"Error saving metadata: {e}")
         return False
+
 
 def validate_data_format(data_matrix, expected_samples, expected_sensors):
     """Validate that the data matrix has the correct format."""

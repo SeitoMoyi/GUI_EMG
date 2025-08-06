@@ -58,7 +58,7 @@ class DelsysSimulator:
     def _create_muscle_profiles(self):
         """Create realistic EMG signal profiles with sub-millivolt amplitudes"""
         muscle_names = [
-            'L-TIBI', 'L-GAST', 'L-RECT', 'R-TIBI'
+            'L-MASS', 'L-MYLO', 'R-MASS', 'R-MYLO'
         ]
         
         profiles = {}

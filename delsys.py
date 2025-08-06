@@ -1,13 +1,24 @@
-# delsys_handler.py - Handles connection and data streaming from Delsys Trigno system
+"""Delsys Trigno system handler for EMG data streaming."""
+
 import socket
 import struct
 import threading
 import time
 import numpy as np
 import queue
-from collections import deque
-import yaml
 from scipy import signal
+
+from config import (
+    EMG_COMMAND_PORT, 
+    EMG_STREAM_PORT, 
+    ACTIVE_CHANNELS, 
+    SAMPLING_RATE,
+    NOTCH_FREQ,
+    NOTCH_Q,
+    HP_FREQ
+)
+from utils import load_muscle_labels
+
 
 class DelsysDataHandler:
     """
@@ -16,16 +27,16 @@ class DelsysDataHandler:
     Updated for 4 channel operation.
     """
     
-    def __init__(self, host_ip='127.0.0.1', num_sensors=16, sampling_rate=2000.0, envelope=False):
+    def __init__(self, host_ip='127.0.0.1', num_sensors=16, sampling_rate=SAMPLING_RATE, envelope=False):
         self.host_ip = host_ip
         self.num_sensors = num_sensors
-        self.active_channels = 4
+        self.active_channels = ACTIVE_CHANNELS
         self.sampling_rate = sampling_rate
         self.envelope = envelope
         
         # Socket configuration matching working app
-        self.EMG_COMMAND_PORT = 50040
-        self.EMG_STREAM_PORT = 50041
+        self.EMG_COMMAND_PORT = EMG_COMMAND_PORT
+        self.EMG_STREAM_PORT = EMG_STREAM_PORT
         
         self.command_socket = None
         self.stream_socket = None
@@ -40,19 +51,19 @@ class DelsysDataHandler:
         self._initialize_filter_states()
         
         # Load muscle labels from YAML configuration file
-        self.muscle_labels = self.load_muscle_labels()
+        self.muscle_labels = load_muscle_labels()
         
     def _design_filters(self):
         """Design the filters needed for signal processing"""
         # Design 60Hz notch filter
-        self.notch_freq = 60.0
-        Q = 30.0  # Quality factor for the notch filter
+        self.notch_freq = NOTCH_FREQ
+        Q = NOTCH_Q  # Quality factor for the notch filter
         b, a = signal.iirnotch(self.notch_freq, Q, self.sampling_rate)
         self.notch_b = b
         self.notch_a = a
         
         # Design DC removal filter (High-pass at 0.5Hz)
-        self.hp_freq = 0.5
+        self.hp_freq = HP_FREQ
         hp_b, hp_a = signal.butter(2, self.hp_freq / (self.sampling_rate / 2), 'high')
         self.dc_block_b = hp_b
         self.dc_block_a = hp_a
@@ -84,24 +95,6 @@ class DelsysDataHandler:
         rectified = abs(notched)
         
         return rectified
-        
-    def load_muscle_labels(self):
-        """Load muscle labels from YAML configuration file."""
-        try:
-            import os
-            yaml_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'muscle_labels.yaml')
-            print(f"🔍 Looking for muscle labels file at: {yaml_path}")
-            with open(yaml_path, 'r') as f:
-                config = yaml.safe_load(f)
-                muscle_labels = config.get('muscle_labels', ['L-TIBI', 'L-GAST', 'L-RECT', 'R-TIBI'])[:self.active_channels]
-                print(f"✅ Loaded muscle labels: {muscle_labels}")
-                return muscle_labels
-        except FileNotFoundError:
-            print("⚠️  muscle_labels.yaml not found. Using default labels.")
-            return ['L-TIBI', 'L-GAST', 'L-RECT', 'R-TIBI']
-        except Exception as e:
-            print(f"❌ Error loading muscle labels: {e}. Using default labels.")
-            return ['L-TIBI', 'L-GAST', 'L-RECT', 'R-TIBI']
         
     def start_streaming(self):
         """Start the EMG data streaming"""
@@ -229,31 +222,3 @@ class DelsysDataHandler:
             self.stream_thread.join(timeout=2.0)
         
         print("✅ Delsys streaming stopped")
-
-# Test the handler
-if __name__ == "__main__":
-    import signal
-    import sys
-    
-    def signal_handler(sig, frame):
-        print("\n🛑 Shutting down...")
-        handler.stop_streaming()
-        sys.exit(0)
-    
-    signal.signal(signal.SIGINT, signal_handler)
-    
-    handler = DelsysDataHandler(host_ip='127.0.0.1', num_sensors=16)
-    
-    if handler.start_streaming():
-        print("✅ Streaming started. Press Ctrl+C to stop...")
-        try:
-            while True:
-                try:
-                    data = handler.output_queue.get(timeout=1.0)
-                    print(f"Channel {data['channel']}: {data['samples'][0]:.6f} ({data['muscle_label']})")
-                except queue.Empty:
-                    continue
-        except KeyboardInterrupt:
-            signal_handler(None, None)
-    else:
-        print("❌ Failed to start streaming")
