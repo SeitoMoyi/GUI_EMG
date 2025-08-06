@@ -11,22 +11,19 @@ import datetime
 def save_emg_recording(save_directory, recording_data_buffer, start_time, sampling_rate, 
                       muscle_labels, recording_session_start_time, trial_counter):
     """
-    Save EMG recording data in MATLAB-compatible format with (samples, channels+1) matrix structure.
-    First column contains timestamps, subsequent columns contain channel data with support for
-    both actual EMG channels and padding to meet MATLAB requirements.
+    Save EMG recording data in MATLAB-compatible format.
     
     Args:
         save_directory: Base directory for saving files
         recording_data_buffer: List where [0] is timestamps, [1:] are channel data
-        start_time: Recording start timestamp (not used in current implementation but kept for compatibility)
+        start_time: Recording start timestamp
         sampling_rate: Sampling rate in Hz
         muscle_labels: List of muscle label strings
         recording_session_start_time: Session start datetime
         trial_counter: Current trial number
     
     Returns:
-        tuple: (success, message, min_samples) where min_samples indicates the number of samples
-              saved after trimming/padding operations
+        tuple: (success, message, min_samples)
     """
     try:
         # Create subdirectories
@@ -36,7 +33,7 @@ def save_emg_recording(save_directory, recording_data_buffer, start_time, sampli
         os.makedirs(structs_directory, exist_ok=True)
         
         # Analyze data and find minimum sample count
-        num_sensors = len(recording_data_buffer) - 1  # Exclude unused timestamp buffer slot
+        num_sensors = len(recording_data_buffer) - 1  # Exclude timestamp buffer
         sample_counts = [len(recording_data_buffer[i]) for i in range(1, num_sensors + 1)]
         
         if not sample_counts or all(count == 0 for count in sample_counts):
@@ -53,11 +50,8 @@ def save_emg_recording(save_directory, recording_data_buffer, start_time, sampli
         
         # Create data matrix in MATLAB-compatible format: (samples, channels+1)
         # First column: timestamps, subsequent columns: channel data
-        # Pad with zeros to match expected 17 channels (1 timestamp + 16 DAQ channels) 
-        # even though we only have data for 4 EMG channels
-        expected_channels = 16  # Expected by MATLAB script
-        data_matrix = np.zeros((min_samples, expected_channels + 1), dtype=np.float64)
-        data_matrix[:, 0] = timestamps
+        data_matrix = np.zeros((min_samples, num_sensors + 1), dtype=np.float64)
+        data_matrix[:, 0] = timestamps  # First column is timestamps
         
         # Fill in channel data, ensuring all channels have the same length
         for i in range(1, num_sensors + 1):
@@ -109,19 +103,16 @@ def generate_timestamps(num_samples, start_time, sampling_rate):
     """Generate relative timestamps starting from 0."""
     # Always generate relative timestamps starting from 0
     # This matches the format expected by MATLAB and used in debug_data_saver.py
-    # The start_time parameter is not used in this implementation but kept for compatibility
     return np.arange(num_samples, dtype=np.float64) / sampling_rate
 
 def save_metadata(meta_filename, num_sensors, sampling_rate, muscle_labels, 
                  recording_session_start_time, trial_counter):
     """Save metadata file in MATLAB format."""
     try:
-        # Use expected channel count (16) for MATLAB compatibility
-        expected_channels = 16
         meta_data = {}
         meta_data['emg_ch_number'] = np.array(range(1, num_sensors + 1))
         meta_data['fs'] = float(sampling_rate)
-        meta_data['total_analog_in_ch'] = float(expected_channels)
+        meta_data['total_analog_in_ch'] = float(num_sensors)
         meta_data['musc_labels'] = np.array(muscle_labels, dtype=object)
         meta_data['session_date'] = recording_session_start_time.strftime("%Y-%m-%d")
         meta_data['session_time'] = recording_session_start_time.strftime("%H:%M:%S")
